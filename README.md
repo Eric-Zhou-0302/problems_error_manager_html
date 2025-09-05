@@ -6,8 +6,6 @@
 
 错题整理系统是一个基于Web的错题管理工具，帮助用户高效收集、整理和管理学习中的错题。系统支持文本输入、图片上传、Markdown编辑和数学公式渲染等功能，所有数据存储在浏览器本地，确保用户隐私安全。
 
-Wrong Question Management System is a web-based tool designed to help users efficiently collect, organize, and manage wrong questions encountered during study. It supports text input, image uploads, Markdown editing, and mathematical formula rendering. All data is stored locally in the browser, ensuring user privacy and security.
-
 ## 功能特点
 
 - 📝 **Markdown支持**：使用Markdown格式编辑错题内容
