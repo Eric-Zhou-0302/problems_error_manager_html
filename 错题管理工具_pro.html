@@ -1504,6 +1504,116 @@
       display: block;
     }
 
+    /* 标签云样式 */
+    .tag-cloud-item {
+      display: inline-block;
+      padding: 5px 10px;
+      margin: 5px;
+      background: var(--light-gray);
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: var(--text-primary);
+    }
+
+    .tag-cloud-item:hover {
+      background: var(--primary);
+      color: white;
+      transform: scale(1.05);
+    }
+
+    /* 复习计划样式 */
+    .review-plan {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 15px 0;
+      border: 1px solid var(--border);
+    }
+
+    .review-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .review-item:last-child {
+      border-bottom: none;
+    }
+
+    .review-date {
+      color: var(--primary);
+      font-weight: 500;
+    }
+
+    .review-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* 移动端优化 */
+    @media (max-width: 768px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      
+      .card {
+        margin: 10px 0;
+      }
+      
+      .actions {
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      
+      .btn {
+        flex: 1;
+        min-width: 120px;
+      }
+      
+      .topbar {
+        flex-direction: column;
+        gap: 10px;
+      }
+      
+      .search-box {
+        width: 100%;
+      }
+      
+      .brand {
+        flex-direction: column;
+        text-align: center;
+      }
+      
+      .controls {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+    }
+
+    /* 导出选项样式 */
+    .export-options {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 15px 0;
+      border: 1px solid var(--border);
+    }
+
+    .export-option {
+      display: flex;
+      align-items: center;
+      margin: 10px 0;
+    }
+
+    .export-option label {
+      margin-left: 10px;
+      color: var(--text-primary);
+    }
+
     /* 拖拽排序样式 */
     .sortable-ghost {
       opacity: 0.5;
@@ -1564,8 +1674,15 @@
             <div class="dropdown-item" data-type="pdf">
               <i class="fas fa-file-pdf"></i> 导出为PDF
             </div>
+            <div class="dropdown-item" data-type="excel">
+              <i class="fas fa-file-excel"></i> 导出为Excel
+            </div>
             <div class="dropdown-item" data-type="zip">
               <i class="fas fa-file-archive"></i> 导出为压缩包
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" data-type="backup">
+              <i class="fas fa-cloud-upload-alt"></i> 创建备份
             </div>
           </div>
         </div>
@@ -2321,37 +2438,162 @@
     };
 
     // 初始化函数
+    // 生成随机颜色
+    function generateColors(count) {
+      const colors = [];
+      for (let i = 0; i < count; i++) {
+        const hue = (i * 137.5) % 360;
+        colors.push(`hsl(${hue}, 70%, 60%)`);
+      }
+      return colors;
+    }
+    
+    // 智能复习提醒
+    function checkReviewTasks() {
+      const today = new Date();
+      const reviewPlans = JSON.parse(localStorage.getItem('review_plans') || '[]');
+      const dueTasks = reviewPlans.filter(plan => {
+        const reviewDate = new Date(plan.date);
+        return reviewDate <= today && !plan.completed;
+      });
+      
+      if (dueTasks.length > 0) {
+        showReviewNotification(dueTasks);
+      }
+    }
+    
+    // 显示复习提醒
+    function showReviewNotification(tasks) {
+      const notification = document.createElement('div');
+      notification.className = 'review-notification';
+      notification.innerHTML = `
+        <div class="review-notification-header">
+          <i class="fas fa-bell"></i>
+          <h3>复习提醒</h3>
+        </div>
+        <div class="review-notification-body">
+          您有 ${tasks.length} 个知识点需要复习
+        </div>
+        <button class="btn btn-primary">开始复习</button>
+      `;
+      
+      document.body.appendChild(notification);
+      setTimeout(() => {
+        notification.classList.add('show');
+      }, 100);
+    }
+    
     function init() {
       // 设置主题
       applyTheme();
       
       // 修复旧数据缺少ID的问题
       fixOldDataIds();
-      refreshCount()
-      renderList()
-      renderMarkdown(elements.ideaPreview, '')
+      refreshCount();
+      renderList();
+      renderMarkdown(elements.ideaPreview, '');
       
       // 设置初始页面
-      showPage('editorPage')
+      showPage('editorPage');
       
       // 添加事件监听
-      setupEventListeners()
-      setupFilenameDialogListeners()
+      setupEventListeners();
+      setupFilenameDialogListeners();
       
       // 初始化拖拽排序
-      initSortable()
+      initSortable();
       
       // 初始化图表
-      initCharts()
+      initCharts();
       
       // 初始化使用统计
-      updateUsageStats()
+      updateUsageStats();
       
       // 检查是否首次访问
-      checkFirstVisit()
+      checkFirstVisit();
       
       // 初始化标签输入
-      initTagInput()
+      initTagInput();
+      
+      // 初始化自动保存
+      initAutoSave();
+      
+      // 初始化复习计划
+      initReviewPlan();
+    }
+    
+    // 初始化自动保存功能
+    function initAutoSave() {
+      let lastSave = JSON.stringify(items);
+      setInterval(() => {
+        const currentState = JSON.stringify(items);
+        if (currentState !== lastSave) {
+          localStorage.setItem(LS_KEY, currentState);
+          lastSave = currentState;
+          flashTip('自动保存成功', 'success');
+        }
+      }, 30000); // 每30秒检查一次变化
+    }
+    
+    // 初始化复习计划
+    function initReviewPlan() {
+      const reviewPlanKey = 'wrong_notes_review_plan';
+      let reviewPlan = JSON.parse(localStorage.getItem(reviewPlanKey) || '[]');
+      
+      // 检查是否有需要复习的内容
+      const today = new Date().toDateString();
+      const needReview = reviewPlan.filter(plan => 
+        new Date(plan.date).toDateString() === today && !plan.completed
+      );
+      
+      if (needReview.length > 0) {
+        flashTip(`今天有 ${needReview.length} 个知识点需要复习`, 'warning');
+      }
+    }
+    
+    // 生成复习计划
+    function generateReviewPlan(item) {
+      const intervals = [1, 3, 7, 14, 30]; // 艾宾浩斯遗忘曲线
+      const today = new Date();
+      
+      return intervals.map(days => {
+        const reviewDate = new Date(today);
+        reviewDate.setDate(today.getDate() + days);
+        return {
+          date: reviewDate.toISOString(),
+          itemId: item.id,
+          completed: false
+        };
+      });
+    }
+    
+    // 更新错题分析
+    function updateErrorAnalysis() {
+      // 统计各种类型的错误
+      const analysis = {
+        byImportance: { low: 0, medium: 0, high: 0 },
+        byTags: {},
+        byDate: {}
+      };
+      
+      items.forEach(item => {
+        // 按重要性统计
+        const importance = item.importance || 1;
+        analysis.byImportance[['low', 'medium', 'high'][importance - 1]]++;
+        
+        // 按标签统计
+        if (item.tags) {
+          item.tags.forEach(tag => {
+            analysis.byTags[tag] = (analysis.byTags[tag] || 0) + 1;
+          });
+        }
+        
+        // 按日期统计
+        const date = new Date(parseInt(item.id.split('-')[0])).toLocaleDateString();
+        analysis.byDate[date] = (analysis.byDate[date] || 0) + 1;
+      });
+      
+      return analysis;
     }
     
     // 初始化标签输入
@@ -2475,6 +2717,31 @@
         const importance = item.importance || 1
         importanceData[importance - 1]++
       })
+      
+      // 获取学习进度分析
+      const analysis = updateErrorAnalysis();
+      
+      // 创建标签分布图表
+      const tagData = {
+        labels: Object.keys(analysis.byTags),
+        datasets: [{
+          data: Object.values(analysis.byTags),
+          backgroundColor: generateColors(Object.keys(analysis.byTags).length)
+        }]
+      };
+      
+      // 创建时间趋势图表
+      const timeData = {
+        labels: Object.keys(analysis.byDate).slice(-30), // 最近30天
+        datasets: [{
+          label: '每日错题数量',
+          data: Object.values(analysis.byDate).slice(-30),
+          borderColor: '#4d6eda',
+          tension: 0.4,
+          fill: true,
+          backgroundColor: 'rgba(77, 110, 218, 0.1)'
+        }]
+      };
       
       new Chart(elements.importanceChart, {
         type: 'doughnut',
@@ -3282,6 +3549,58 @@
         }
     }
 
+    // 创建数据备份
+    function createBackup() {
+      const backupData = {
+        items: items,
+        settings: {
+          theme: isDarkMode ? 'dark' : 'light',
+          lastBackup: new Date().toISOString()
+        },
+        stats: {
+          totalItems: items.length,
+          analysis: updateErrorAnalysis()
+        }
+      };
+      
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      saveAs(blob, `错题管理系统备份_${new Date().toISOString().slice(0,10)}.json`);
+      flashTip('备份文件已创建', 'success');
+    }
+    
+    // 恢复备份数据
+    function restoreBackup(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const backupData = JSON.parse(e.target.result);
+          if (!backupData.items || !Array.isArray(backupData.items)) {
+            throw new Error('无效的备份文件');
+          }
+          
+          if (!confirm('确定要恢复备份数据吗？当前数据将被覆盖。')) {
+            return;
+          }
+          
+          items = backupData.items;
+          if (backupData.settings) {
+            isDarkMode = backupData.settings.theme === 'dark';
+            applyTheme();
+          }
+          
+          saveLS();
+          refreshCount();
+          renderList();
+          flashTip('备份数据已恢复', 'success');
+          
+        } catch (error) {
+          console.error('恢复备份失败:', error);
+          flashTip('恢复备份失败，请检查文件格式', 'danger');
+        }
+      };
+      reader.readAsText(file);
+    }
+    
     // 导出为ZIP压缩包
     async function exportToZip() {
       if (items.length === 0) {
@@ -3693,6 +4012,76 @@
       
       // 列表事件监听在renderList中设置
       
+      // 添加语音输入支持
+      if ('webkitSpeechRecognition' in window) {
+        const recognition = new webkitSpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'zh-CN';
+        
+        let isListening = false;
+        
+        document.querySelectorAll('textarea').forEach(textarea => {
+          const voiceBtn = document.createElement('button');
+          voiceBtn.className = 'voice-input-btn';
+          voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+          voiceBtn.style.position = 'absolute';
+          voiceBtn.style.right = '10px';
+          voiceBtn.style.bottom = '10px';
+          
+          textarea.parentElement.style.position = 'relative';
+          textarea.parentElement.appendChild(voiceBtn);
+          
+          voiceBtn.addEventListener('click', () => {
+            if (!isListening) {
+              recognition.start();
+              voiceBtn.classList.add('listening');
+            } else {
+              recognition.stop();
+              voiceBtn.classList.remove('listening');
+            }
+            isListening = !isListening;
+          });
+          
+          recognition.onresult = (event) => {
+            const text = event.results[0][0].transcript;
+            textarea.value += text;
+            if (textarea.id === 'idea') {
+              renderMarkdown(elements.ideaPreview, textarea.value);
+            }
+          };
+          
+          recognition.onend = () => {
+            isListening = false;
+            voiceBtn.classList.remove('listening');
+          };
+        });
+      }
+      
+      // 添加智能标签推荐
+      elements.knowledge.addEventListener('input', () => {
+        const text = elements.knowledge.value;
+        if (text.length > 10) {
+          // 简单的关键词提取
+          const keywords = extractKeywords(text);
+          keywords.forEach(keyword => {
+            if (!current.tags.includes(keyword)) {
+              setTimeout(() => {
+                if (confirm(`是否将"${keyword}"添加为标签？`)) {
+                  addTag(keyword);
+                }
+              }, 500);
+            }
+          });
+        }
+      });
+      
+      function extractKeywords(text) {
+        // 这里可以实现更复杂的关键词提取算法
+        const words = text.match(/[\u4e00-\u9fa5]{2,}/g) || [];
+        return Array.from(new Set(words)).slice(0, 3);
+      }
+      
       [elements.qDrop, elements.aDrop].forEach(el => {
         el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('active'); });
         el.addEventListener('dragleave', () => { el.classList.remove('active'); });
@@ -3733,6 +4122,8 @@
           if (type === 'html') exportToHtml();
           if (type === 'pdf') exportToPdf();
           if (type === 'zip') exportToZip();
+          if (type === 'excel') exportToExcel();
+          if (type === 'backup') createBackup();
         });
       });
       
